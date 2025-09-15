@@ -1,0 +1,21 @@
+name: Weeknd Watcher
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # ogni 10 minuti (puoi mettere */5 per ogni 5 min)
+  workflow_dispatch: {}       # permette di avviarlo a mano
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      # installiamo dipendenze "al volo" (non serve package.json)
+      - run: npm i puppeteer node-fetch@2
+      - run: node fetch-and-post.js
+        env:
+          N8N_WEBHOOK: ${{ secrets.N8N_WEBHOOK }}
+          N8N_WEBHOOK_AUTH: ${{ secrets.N8N_WEBHOOK_AUTH }}  # opzionale, solo se proteggi con header
