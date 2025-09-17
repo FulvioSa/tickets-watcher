@@ -65,6 +65,10 @@ async function scrapeOne(browser, t){
       if (await e.count()) { await e.click({timeout: 1500}).catch(()=>{}); break; }
     }
 
+    // aspetta un attimo e scatta un altro screenshot
+    await page.waitForTimeout(800);
+    await page.screenshot({ path: `./shots/${safe}_after.png`, fullPage: true });
+
     // scroll corto per innescare lazy load
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight/3));
     await page.waitForTimeout(800);
