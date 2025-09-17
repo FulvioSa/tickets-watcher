@@ -27,7 +27,14 @@ jobs:
 
       - name: Scrape & POST
         run: npm run scrape
-
+  
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shots
+          path: shots
+  
       - name: Commit state.json if changed
         run: |
           if [[ -n "$(git status --porcelain state.json)" ]]; then
