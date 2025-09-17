@@ -1,21 +1,41 @@
-name: Weeknd Watcher
+name: Tickets Watcher
 
 on:
   schedule:
-    - cron: '*/10 * * * *'   # ogni 10 minuti (puoi mettere */5 per ogni 5 min)
-  workflow_dispatch: {}       # permette di avviarlo a mano
+    - cron: "*/5 * * * *"   # ogni 5 minuti
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
 
 jobs:
-  watch:
+  run:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+      CHAT_ID: ${{ secrets.CHAT_ID }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      # installiamo dipendenze "al volo" (non serve package.json)
-      - run: npm i puppeteer node-fetch@2
-      - run: node fetch-and-post.js
-        env:
-          N8N_WEBHOOK: ${{ secrets.N8N_WEBHOOK }}
-          N8N_WEBHOOK_AUTH: ${{ secrets.N8N_WEBHOOK_AUTH }}  # opzionale, solo se proteggi con header
+          node-version: 20
+
+      - run: npm i
+      - run: npx playwright install --with-deps chromium
+
+      - name: Scrape & POST
+        run: npm run scrape
+
+      - name: Commit state.json if changed
+        run: |
+          if [[ -n "$(git status --porcelain state.json)" ]]; then
+            git config user.name "tickets-bot"
+            git config user.email "tickets-bot@users.noreply.github.com"
+            git add state.json
+            git commit -m "chore: update state.json [skip ci]"
+            git push
+          else
+            echo "No state changes"
+          fi
