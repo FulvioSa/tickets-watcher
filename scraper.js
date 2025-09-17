@@ -47,6 +47,12 @@ async function scrapeOne(browser, t){
   try {
     await page.goto(t.url, gotoOpts);
 
+    // screenshot subito dopo il caricamento
+    const safe = (t.label || t.url).replace(/[^a-z0-9-_]+/gi, "_");
+    await fs.mkdir("./shots", { recursive: true });
+    await page.screenshot({ path: `./shots/${safe}.png`, fullPage: true });
+    console.log(`Screenshot salvato: ./shots/${safe}.png`);
+
     // prova a chiudere banner cookie comuni (best-effort)
     const cookieSelectors = [
       'button#onetrust-accept-btn-handler',
