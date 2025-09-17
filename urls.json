@@ -1,14 +1,26 @@
 [
   {
-    "url": "https://www.ticketmaster.it/event/...", 
-    "label": "Ticketmaster – The Weeknd – Roma"
+    "url": "https://shop.ticketmaster.it/presale-02/biglietti/the-weeknd-after-hours-til-dawn-tour-24-luglio-2026-stadio-san-siro-milano-14517.html",
+    "label": "Ticketmaster Presale 24 Luglio"
   },
   {
-    "url": "https://www.ticketone.it/event/...",
-    "label": "TicketOne – The Weeknd – Milano"
+    "url": "https://www.ticketone.it/event/the-weeknd-stadio-san-siro-20636996/",
+    "label": "TicketOne 24 Luglio"
   },
   {
-    "url": "https://www.vivaticket.com/it/Ticket/...",
-    "label": "Vivaticket – The Weeknd – Bologna"
+    "url": "https://shop.ticketmaster.it/presale-02/biglietti/the-weeknd-after-hours-til-dawn-tour-25-luglio-2026-stadio-san-siro-milano-14543.html",
+    "label": "Ticketmaster Presale 25 Luglio"
+  },
+  {
+    "url": "https://www.ticketone.it/event/the-weeknd-stadio-san-siro-20642020/",
+    "label": "TicketOne 25 Luglio"
+  },
+  {
+    "url": "https://shop.ticketmaster.it/presale-02/biglietti/the-weeknd-after-hours-til-dawn-tour-26-luglio-2026-stadio-san-siro-milano-14544.html",
+    "label": "Ticketmaster Presale 26 Luglio"
+  },
+  {
+    "url": "https://www.ticketone.it/event/the-weeknd-stadio-san-siro-20643052/",
+    "label": "TicketOne 26 Luglio"
   }
 ]
