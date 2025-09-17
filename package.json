@@ -1,0 +1,12 @@
+{
+  "name": "tickets-scraper",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "scrape": "node scraper.js"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2",
+    "playwright": "^1.46.0"
+  }
+}
