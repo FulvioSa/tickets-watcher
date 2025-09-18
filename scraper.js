@@ -1,9 +1,11 @@
+// scraper.js
 import { chromium } from "playwright";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import fetch from "node-fetch";
+import path from "node:path";
 
-const WEBHOOK_URL = process.env.WEBHOOK_URL;               // secret
+const WEBHOOK_URL = process.env.WEBHOOK_URL; // impostalo come secret
 const CHAT_ID = process.env.CHAT_ID ? Number(process.env.CHAT_ID) : undefined;
 
 if (!WEBHOOK_URL) {
@@ -14,15 +16,11 @@ const targets = JSON.parse(await fs.readFile("./urls.json", "utf8"));
 let state = {};
 try { state = JSON.parse(await fs.readFile("./state.json","utf8")); } catch { state = {}; }
 
-// parole chiave che il tuo parser n8n capisce già
+// keywords / regex (coerenti con n8n)
 const sectorKeywords = ["gold circle","golden circle","prato gold","inner circle"];
 const qtyPatterns = [/\b2\s*tickets?\b/i, /\b2x\b/i, /\bcoppia\b/i, /\b2\s*bigliett/i];
-// segnali di sold-out/disponibilità generica (solo pre-filtro, la decisione finale la fa n8n)
-const negative = ['sold out','currently unavailable','no tickets available','esaurito','esauriti','not available'];
-const positive = ['buy tickets','find tickets','resale','tickets available','acquista','disponibili','available now'];
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-
 const gotoOpts = { waitUntil: "domcontentloaded", timeout: 60_000 };
 
 function sha(str){ return crypto.createHash("sha256").update(str).digest("hex"); }
@@ -31,6 +29,8 @@ function preCheck(text){
   const t = text.toLowerCase();
   const hasGold = sectorKeywords.some(k => t.includes(k));
   const hasQty2  = qtyPatterns.some(re => re.test(t));
+  const positive = ['buy tickets','find tickets','resale','tickets available','acquista','disponibili','available now'];
+  const negative = ['sold out','currently unavailable','no tickets available','esaurito','esauriti','not available'];
   const pos = positive.some(k => t.includes(k));
   const neg = negative.some(k => t.includes(k));
   return { hasGold, hasQty2, pos, neg };
@@ -47,13 +47,7 @@ async function scrapeOne(browser, t){
   try {
     await page.goto(t.url, gotoOpts);
 
-    // screenshot subito dopo il caricamento
-    const safe = (t.label || t.url).replace(/[^a-z0-9-_]+/gi, "_");
-    await fs.mkdir("./shots", { recursive: true });
-    await page.screenshot({ path: `./shots/${safe}.png`, fullPage: true });
-    console.log(`Screenshot salvato: ./shots/${safe}.png`);
-
-    // prova a chiudere banner cookie comuni (best-effort)
+    // best-effort close cookie banner
     const cookieSelectors = [
       'button#onetrust-accept-btn-handler',
       'button:has-text("Accetta")',
@@ -61,39 +55,52 @@ async function scrapeOne(browser, t){
       '[data-accept]','[aria-label*="Accetta"]'
     ];
     for (const sel of cookieSelectors){
-      const e = page.locator(sel).first();
-      if (await e.count()) { await e.click({timeout: 1500}).catch(()=>{}); break; }
+      try {
+        const el = page.locator(sel).first();
+        if (await el.count()) { await el.click({timeout: 1500}).catch(()=>{}); break; }
+      } catch(e){}
     }
 
-    // aspetta un attimo e scatta un altro screenshot
-    await page.waitForTimeout(800);
-    await page.screenshot({ path: `./shots/${safe}_after.png`, fullPage: true });
-
-    // scroll corto per innescare lazy load
+    // scroll per lazy load e stabilizzare
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight/3));
     await page.waitForTimeout(800);
+
+    // salva screenshot (file)
+    await fs.mkdir('./shots', { recursive: true });
+    const safe = t.label ? t.label.replace(/\W+/g,'_').slice(0,40) : 'shot';
+    const shotPath = `./shots/${safe}_after.png`;
+    await page.screenshot({ path: shotPath, fullPage: true });
 
     const html = await page.content();
     const text = await page.evaluate(() => document.body.innerText || "");
 
-    // dedup: se né html né testo cambiano, e non c'è segnale "positivo", salta POST
+    // dedup: se segnali non interessanti e nulla è cambiato -> skip
     const sig = sha(html);
     const prevSig = state[t.url]?.sig;
     const mini = preCheck(text);
 
-    // se è identico e non ci sono keyword interessanti → salta
     if (prevSig === sig && !(mini.hasGold || mini.pos)) {
       console.log(`No change & no signal: ${t.url}`);
       return { posted:false, reason:"nochange" };
     }
 
-    // POST al webhook (il parsing vero lo fa n8n)
+    // rilevazione blocco (captcha/imperva)
+    const blocked = /imperva|captcha|i'm not a human|additional security check|why am i seeing this page/i.test(text + html.toLowerCase());
+
+    // read screenshot file and convert base64
+    const b = await fs.readFile(shotPath);
+    const screenshot_b64 = b.toString('base64');
+
+    // POST payload
     const payload = {
       url: t.url,
       label: t.label || t.url,
       chatId: CHAT_ID,
       html,
-      // opzionale: passiamo anche keywords così n8n potrebbe usarle
+      text: text.slice(0, 4000), // un estratto opzionale
+      blocked,
+      detectedProvider: blocked ? 'imperva_or_captcha' : null,
+      screenshot_base64: screenshot_b64,
       sectorKeywords,
       qtyPatterns: qtyPatterns.map(re => re.source)
     };
@@ -129,7 +136,7 @@ async function scrapeOne(browser, t){
     ok = ok && (r.posted || r.reason === "nochange");
   }
   await browser.close();
-  // salva sempre lo stato (per dedup)
+  // salva stato (per dedup)
   await fs.writeFile("./state.json", JSON.stringify(state, null, 2));
   process.exit(ok ? 0 : 1);
 })();
